@@ -414,9 +414,22 @@ async def root():
     }
 
 if __name__ == "__main__":
+    import os
     print("🚀 Starting EAC Super App Backend...")
     print("📊 Admin Login: admin@eac.com / admin123")
     print("🔧 DBA Login: dba@eac.com / dba123")
-    print("🌐 API Documentation: http://localhost:8000/docs")
-    print("❤️  Health Check: http://localhost:8000/health")
-    uvicorn.run("main:app", host="0.0.0.0", port=8000, reload=True)
+    print("🌐 API Documentation: /docs")
+    print("❤️  Health Check: /health")
+    
+    # Get port from environment variable (Render sets this)
+    port = int(os.environ.get("PORT", 8000))
+    
+    # For production (Render), don't use reload
+    is_production = os.environ.get("RENDER", False)
+    
+    uvicorn.run(
+        "main:app", 
+        host="0.0.0.0", 
+        port=port, 
+        reload=not is_production  # Disable reload in production
+    )
