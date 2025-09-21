@@ -1,0 +1,649 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>EAC Super App</title>
+    <script crossorigin src="https://unpkg.com/react@18/umd/react.development.js"></script>
+    <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        .gradient-bg {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        }
+        .animate-float {
+            animation: float 6s ease-in-out infinite;
+        }
+        @keyframes float {
+            0%, 100% { transform: translateY(0px); }
+            50% { transform: translateY(-10px); }
+        }
+    </style>
+</head>
+<body>
+    <div id="root"></div>
+
+    <script type="text/babel">
+        const { useState, useEffect } = React;
+
+        // API Configuration
+        const API_BASE = 'http://localhost:8000';
+
+        const api = {
+            login: async (email, password) => {
+                const response = await fetch(`${API_BASE}/auth/login`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ email, password })
+                });
+                return response.json();
+            },
+            getApps: async (token) => {
+                const response = await fetch(`${API_BASE}/dashboard/apps`, {
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
+                return response.json();
+            },
+            getUsers: async (token) => {
+                const response = await fetch(`${API_BASE}/admin/users`, {
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
+                return response.json();
+            },
+            verifyPayment: async (token, data) => {
+                const response = await fetch(`${API_BASE}/admin/verify-payment`, {
+                    method: 'POST',
+                    headers: { 
+                        'Authorization': `Bearer ${token}`,
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(data)
+                });
+                return response.json();
+            },
+            createUserDirect: async (token, data) => {
+                const response = await fetch(`${API_BASE}/dba/create-user-direct`, {
+                    method: 'POST',
+                    headers: { 
+                        'Authorization': `Bearer ${token}`,
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(data)
+                });
+                return response.json();
+            },
+            toggleAccess: async (token, email) => {
+                const response = await fetch(`${API_BASE}/dba/toggle-user-access/${email}`, {
+                    method: 'POST',
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
+                return response.json();
+            },
+            getStats: async (token) => {
+                const response = await fetch(`${API_BASE}/dba/stats`, {
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
+                return response.json();
+            }
+        };
+
+        // Login Component
+        function Login({ onLogin }) {
+            const [email, setEmail] = useState('');
+            const [password, setPassword] = useState('');
+            const [loading, setLoading] = useState(false);
+            const [error, setError] = useState('');
+
+            const handleSubmit = async (e) => {
+                e.preventDefault();
+                setLoading(true);
+                setError('');
+
+                try {
+                    const result = await api.login(email, password);
+                    if (result.access_token) {
+                        localStorage.setItem('token', result.access_token);
+                        localStorage.setItem('user', JSON.stringify(result.user));
+                        onLogin(result.user, result.access_token);
+                    } else {
+                        setError(result.detail || 'Login failed');
+                    }
+                } catch (err) {
+                    setError('Network error. Please try again.');
+                } finally {
+                    setLoading(false);
+                }
+            };
+
+            return (
+                <div className="min-h-screen gradient-bg flex items-center justify-center p-4">
+                    <div className="max-w-md w-full">
+                        <div className="bg-white rounded-2xl shadow-2xl p-8 animate-float">
+                            <div className="text-center mb-8">
+                                <h1 className="text-3xl font-bold text-gray-800 mb-2">EAC Super App</h1>
+                                <p className="text-gray-600">Professional Gateway to Your Apps</p>
+                            </div>
+
+                            {error && (
+                                <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded mb-4">
+                                    {error}
+                                </div>
+                            )}
+
+                            <form onSubmit={handleSubmit} className="space-y-6">
+                                <div>
+                                    <label className="block text-sm font-medium text-gray-700 mb-2">Email</label>
+                                    <input
+                                        type="email"
+                                        value={email}
+                                        onChange={(e) => setEmail(e.target.value)}
+                                        className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                                        placeholder="Enter your email"
+                                        required
+                                    />
+                                </div>
+
+                                <div>
+                                    <label className="block text-sm font-medium text-gray-700 mb-2">Password</label>
+                                    <input
+                                        type="password"
+                                        value={password}
+                                        onChange={(e) => setPassword(e.target.value)}
+                                        className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                                        placeholder="Enter your password"
+                                        required
+                                    />
+                                </div>
+
+                                <button
+                                    type="submit"
+                                    disabled={loading}
+                                    className="w-full bg-blue-600 text-white py-3 px-4 rounded-lg hover:bg-blue-700 font-medium disabled:opacity-50"
+                                >
+                                    {loading ? 'Signing In...' : 'Sign In'}
+                                </button>
+                            </form>
+
+                            <div className="mt-6 text-center text-sm text-gray-600">
+                                <p><strong>Admin:</strong> admin@eac.com / admin123</p>
+                                <p><strong>DBA:</strong> dba@eac.com / dba123</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            );
+        }
+
+        // Admin Panel Component
+        function AdminPanel({ user, token, onClose }) {
+            const [users, setUsers] = useState([]);
+            const [tab, setTab] = useState('users');
+            const [stats, setStats] = useState(null);
+            const [loading, setLoading] = useState(true);
+
+            // Payment form
+            const [paymentEmail, setPaymentEmail] = useState('');
+            const [paymentAmount, setPaymentAmount] = useState('');
+            const [paymentMonths, setPaymentMonths] = useState(1);
+
+            // User creation form
+            const [newEmail, setNewEmail] = useState('');
+            const [newUsername, setNewUsername] = useState('');
+            const [newPassword, setNewPassword] = useState('');
+            const [grantAccess, setGrantAccess] = useState(true);
+
+            useEffect(() => {
+                fetchUsers();
+                if (user.is_dba) {
+                    fetchStats();
+                }
+            }, []);
+
+            const fetchUsers = async () => {
+                try {
+                    const data = await api.getUsers(token);
+                    setUsers(data);
+                } catch (error) {
+                    console.error('Failed to fetch users:', error);
+                } finally {
+                    setLoading(false);
+                }
+            };
+
+            const fetchStats = async () => {
+                try {
+                    const data = await api.getStats(token);
+                    setStats(data);
+                } catch (error) {
+                    console.error('Failed to fetch stats:', error);
+                }
+            };
+
+            const handlePaymentVerify = async (e) => {
+                e.preventDefault();
+                try {
+                    await api.verifyPayment(token, {
+                        user_email: paymentEmail,
+                        amount: parseFloat(paymentAmount),
+                        subscription_months: parseInt(paymentMonths)
+                    });
+                    alert('Payment verified!');
+                    setPaymentEmail('');
+                    setPaymentAmount('');
+                    setPaymentMonths(1);
+                    fetchUsers();
+                } catch (error) {
+                    alert('Failed to verify payment');
+                }
+            };
+
+            const handleCreateUser = async (e) => {
+                e.preventDefault();
+                try {
+                    await api.createUserDirect(token, {
+                        email: newEmail,
+                        username: newUsername,
+                        password: newPassword,
+                        grant_immediate_access: grantAccess
+                    });
+                    alert('User created successfully!');
+                    setNewEmail('');
+                    setNewUsername('');
+                    setNewPassword('');
+                    setGrantAccess(true);
+                    fetchUsers();
+                } catch (error) {
+                    alert('Failed to create user');
+                }
+            };
+
+            const handleToggleAccess = async (email) => {
+                try {
+                    await api.toggleAccess(token, email);
+                    fetchUsers();
+                } catch (error) {
+                    alert('Failed to toggle access');
+                }
+            };
+
+            return (
+                <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+                    <div className="bg-white rounded-xl shadow-2xl max-w-6xl w-full max-h-screen overflow-auto">
+                        <div className="p-6 border-b flex justify-between items-center">
+                            <h2 className="text-2xl font-bold">
+                                {user.is_dba ? 'DBA Control Panel' : 'Admin Panel'}
+                            </h2>
+                            <button onClick={onClose} className="text-gray-500 hover:text-gray-700 text-xl">×</button>
+                        </div>
+
+                        {/* Tabs */}
+                        <div className="p-6 border-b">
+                            <div className="flex space-x-4">
+                                <button
+                                    onClick={() => setTab('users')}
+                                    className={`px-4 py-2 rounded ${tab === 'users' ? 'bg-blue-600 text-white' : 'bg-gray-200'}`}
+                                >
+                                    Users
+                                </button>
+                                <button
+                                    onClick={() => setTab('payments')}
+                                    className={`px-4 py-2 rounded ${tab === 'payments' ? 'bg-blue-600 text-white' : 'bg-gray-200'}`}
+                                >
+                                    Payments
+                                </button>
+                                {user.is_dba && (
+                                    <>
+                                        <button
+                                            onClick={() => setTab('create')}
+                                            className={`px-4 py-2 rounded ${tab === 'create' ? 'bg-blue-600 text-white' : 'bg-gray-200'}`}
+                                        >
+                                            Create User
+                                        </button>
+                                        <button
+                                            onClick={() => setTab('stats')}
+                                            className={`px-4 py-2 rounded ${tab === 'stats' ? 'bg-blue-600 text-white' : 'bg-gray-200'}`}
+                                        >
+                                            Stats
+                                        </button>
+                                    </>
+                                )}
+                            </div>
+                        </div>
+
+                        <div className="p-6">
+                            {/* Users Tab */}
+                            {tab === 'users' && (
+                                <div className="overflow-x-auto">
+                                    <table className="min-w-full border border-gray-200">
+                                        <thead className="bg-gray-50">
+                                            <tr>
+                                                <th className="px-4 py-2 text-left">Email</th>
+                                                <th className="px-4 py-2 text-left">Username</th>
+                                                <th className="px-4 py-2 text-left">Status</th>
+                                                <th className="px-4 py-2 text-left">Payment</th>
+                                                <th className="px-4 py-2 text-left">Role</th>
+                                                {user.is_dba && <th className="px-4 py-2 text-left">Actions</th>}
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            {users.map((u) => (
+                                                <tr key={u.id} className="border-t">
+                                                    <td className="px-4 py-2">{u.email}</td>
+                                                    <td className="px-4 py-2">{u.username}</td>
+                                                    <td className="px-4 py-2">
+                                                        <span className={`px-2 py-1 rounded text-xs ${u.is_active ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}`}>
+                                                            {u.is_active ? 'Active' : 'Inactive'}
+                                                        </span>
+                                                    </td>
+                                                    <td className="px-4 py-2">
+                                                        <span className={`px-2 py-1 rounded text-xs ${u.payment_verified ? 'bg-green-100 text-green-800' : 'bg-yellow-100 text-yellow-800'}`}>
+                                                            {u.payment_verified ? 'Verified' : 'Pending'}
+                                                        </span>
+                                                    </td>
+                                                    <td className="px-4 py-2">
+                                                        {u.is_dba ? 'DBA' : u.is_admin ? 'Admin' : 'User'}
+                                                    </td>
+                                                    {user.is_dba && (
+                                                        <td className="px-4 py-2">
+                                                            {!u.is_dba && (
+                                                                <button
+                                                                    onClick={() => handleToggleAccess(u.email)}
+                                                                    className={`px-3 py-1 text-xs rounded ${u.is_active ? 'bg-red-600 text-white hover:bg-red-700' : 'bg-green-600 text-white hover:bg-green-700'}`}
+                                                                >
+                                                                    {u.is_active ? 'Revoke' : 'Grant'}
+                                                                </button>
+                                                            )}
+                                                        </td>
+                                                    )}
+                                                </tr>
+                                            ))}
+                                        </tbody>
+                                    </table>
+                                </div>
+                            )}
+
+                            {/* Payments Tab */}
+                            {tab === 'payments' && (
+                                <div>
+                                    <h3 className="text-lg font-medium mb-4">Verify Payment</h3>
+                                    <form onSubmit={handlePaymentVerify} className="bg-gray-50 p-4 rounded grid grid-cols-1 md:grid-cols-4 gap-4">
+                                        <input
+                                            type="email"
+                                            placeholder="User Email"
+                                            value={paymentEmail}
+                                            onChange={(e) => setPaymentEmail(e.target.value)}
+                                            className="px-3 py-2 border rounded"
+                                            required
+                                        />
+                                        <input
+                                            type="number"
+                                            placeholder="Amount"
+                                            value={paymentAmount}
+                                            onChange={(e) => setPaymentAmount(e.target.value)}
+                                            className="px-3 py-2 border rounded"
+                                            required
+                                        />
+                                        <select
+                                            value={paymentMonths}
+                                            onChange={(e) => setPaymentMonths(e.target.value)}
+                                            className="px-3 py-2 border rounded"
+                                        >
+                                            <option value="1">1 Month</option>
+                                            <option value="3">3 Months</option>
+                                            <option value="6">6 Months</option>
+                                            <option value="12">12 Months</option>
+                                        </select>
+                                        <button type="submit" className="bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700">
+                                            Verify
+                                        </button>
+                                    </form>
+                                </div>
+                            )}
+
+                            {/* Create User Tab (DBA only) */}
+                            {tab === 'create' && user.is_dba && (
+                                <div>
+                                    <h3 className="text-lg font-medium mb-4">DBA: Create User with Direct Access</h3>
+                                    <form onSubmit={handleCreateUser} className="bg-green-50 p-4 rounded space-y-4">
+                                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                            <input
+                                                type="email"
+                                                placeholder="Email"
+                                                value={newEmail}
+                                                onChange={(e) => setNewEmail(e.target.value)}
+                                                className="px-3 py-2 border rounded"
+                                                required
+                                            />
+                                            <input
+                                                type="text"
+                                                placeholder="Username"
+                                                value={newUsername}
+                                                onChange={(e) => setNewUsername(e.target.value)}
+                                                className="px-3 py-2 border rounded"
+                                                required
+                                            />
+                                            <input
+                                                type="password"
+                                                placeholder="Password"
+                                                value={newPassword}
+                                                onChange={(e) => setNewPassword(e.target.value)}
+                                                className="px-3 py-2 border rounded"
+                                                required
+                                            />
+                                            <div className="flex items-center space-x-2">
+                                                <input
+                                                    type="checkbox"
+                                                    checked={grantAccess}
+                                                    onChange={(e) => setGrantAccess(e.target.checked)}
+                                                />
+                                                <label>Grant immediate access</label>
+                                            </div>
+                                        </div>
+                                        <button type="submit" className="bg-green-600 text-white px-6 py-2 rounded hover:bg-green-700">
+                                            Create User
+                                        </button>
+                                    </form>
+                                </div>
+                            )}
+
+                            {/* Stats Tab (DBA only) */}
+                            {tab === 'stats' && user.is_dba && stats && (
+                                <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                                    <div className="bg-blue-100 p-4 rounded text-center">
+                                        <div className="text-2xl font-bold text-blue-800">{stats.total_users}</div>
+                                        <div className="text-blue-600">Total Users</div>
+                                    </div>
+                                    <div className="bg-green-100 p-4 rounded text-center">
+                                        <div className="text-2xl font-bold text-green-800">{stats.active_users}</div>
+                                        <div className="text-green-600">Active Users</div>
+                                    </div>
+                                    <div className="bg-red-100 p-4 rounded text-center">
+                                        <div className="text-2xl font-bold text-red-800">{stats.inactive_users}</div>
+                                        <div className="text-red-600">Inactive Users</div>
+                                    </div>
+                                    <div className="bg-yellow-100 p-4 rounded text-center">
+                                        <div className="text-2xl font-bold text-yellow-800">{stats.total_payments}</div>
+                                        <div className="text-yellow-600">Payments</div>
+                                    </div>
+                                </div>
+                            )}
+                        </div>
+                    </div>
+                </div>
+            );
+        }
+
+        // Dashboard Component
+        function Dashboard({ user, token }) {
+            const [apps, setApps] = useState([]);
+            const [loading, setLoading] = useState(true);
+            const [showAdmin, setShowAdmin] = useState(false);
+
+            useEffect(() => {
+                const fetchApps = async () => {
+                    try {
+                        const data = await api.getApps(token);
+                        setApps(data);
+                    } catch (error) {
+                        console.error('Failed to fetch apps:', error);
+                    } finally {
+                        setLoading(false);
+                    }
+                };
+                fetchApps();
+            }, [token]);
+
+            const handleAppClick = (app) => {
+                if (app.status === 'active') {
+                    window.open(app.url, '_blank');
+                }
+            };
+
+            const handleLogout = () => {
+                localStorage.removeItem('token');
+                localStorage.removeItem('user');
+                window.location.reload();
+            };
+
+            if (loading) {
+                return (
+                    <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+                        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+                    </div>
+                );
+            }
+
+            return (
+                <div className="min-h-screen bg-gray-50">
+                    {/* Header */}
+                    <header className="bg-white shadow-sm">
+                        <div className="max-w-7xl mx-auto px-4 py-4 flex justify-between items-center">
+                            <h1 className="text-2xl font-bold text-gray-900">EAC Super App</h1>
+                            <div className="flex items-center space-x-4">
+                                <span className="text-gray-600">Welcome, {user.username}</span>
+                                <button onClick={handleLogout} className="text-red-600 hover:text-red-800">
+                                    Logout
+                                </button>
+                            </div>
+                        </div>
+                    </header>
+
+                    <main className="max-w-7xl mx-auto px-4 py-8">
+                        {/* Account Status */}
+                        <div className="bg-white rounded-lg shadow p-6 mb-8">
+                            <h2 className="text-lg font-semibold mb-2">Account Status</h2>
+                            <p className={`text-sm ${user.payment_verified ? 'text-green-600' : 'text-red-600'}`}>
+                                {user.payment_verified ? '✓ Payment Verified' : '⚠ Payment Verification Required'}
+                            </p>
+                        </div>
+
+                        {/* Apps Grid */}
+                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
+                            {apps.map((app) => (
+                                <div key={app.id} className="bg-white rounded-xl shadow-lg hover:shadow-xl transition-shadow">
+                                    <div className="p-6">
+                                        <div className="flex justify-between items-start mb-4">
+                                            <div className="text-4xl">{app.icon}</div>
+                                            <span className={`px-3 py-1 rounded-full text-xs font-medium ${
+                                                app.status === 'active' ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-600'
+                                            }`}>
+                                                {app.status === 'active' ? 'Available' : 'Coming Soon'}
+                                            </span>
+                                        </div>
+                                        <h3 className="text-xl font-semibold mb-2">{app.name}</h3>
+                                        <p className="text-gray-600 text-sm mb-4">{app.description}</p>
+                                        <button
+                                            onClick={() => handleAppClick(app)}
+                                            disabled={app.status !== 'active'}
+                                            className={`w-full py-3 px-4 rounded-lg font-medium transition-colors ${
+                                                app.status === 'active' 
+                                                    ? 'bg-blue-600 text-white hover:bg-blue-700' 
+                                                    : 'bg-gray-300 text-gray-500 cursor-not-allowed'
+                                            }`}
+                                        >
+                                            {app.status === 'active' ? 'Launch App' : 'Coming Soon'}
+                                        </button>
+                                    </div>
+                                </div>
+                            ))}
+                        </div>
+
+                        {/* Admin Panel Button - Only visible to admins */}
+                        {user.is_admin && (
+                            <div className="bg-blue-50 border border-blue-200 rounded-lg p-6">
+                                <h3 className="text-lg font-medium text-blue-800 mb-2">
+                                    {user.is_dba ? 'DBA Access' : 'Admin Access'}
+                                </h3>
+                                <p className="text-blue-600 text-sm mb-4">
+                                    You have {user.is_dba ? 'database administrator' : 'administrative'} privileges
+                                </p>
+                                <button
+                                    onClick={() => setShowAdmin(true)}
+                                    className="bg-blue-600 text-white px-6 py-2 rounded-lg hover:bg-blue-700"
+                                >
+                                    {user.is_dba ? 'Open DBA Panel' : 'Open Admin Panel'}
+                                </button>
+                            </div>
+                        )}
+                    </main>
+
+                    {showAdmin && (
+                        <AdminPanel user={user} token={token} onClose={() => setShowAdmin(false)} />
+                    )}
+                </div>
+            );
+        }
+
+        // Main App Component
+        function App() {
+            const [user, setUser] = useState(null);
+            const [token, setToken] = useState(null);
+            const [loading, setLoading] = useState(true);
+
+            useEffect(() => {
+                const savedToken = localStorage.getItem('token');
+                const savedUser = localStorage.getItem('user');
+                
+                if (savedToken && savedUser) {
+                    try {
+                        const userData = JSON.parse(savedUser);
+                        setUser(userData);
+                        setToken(savedToken);
+                    } catch (error) {
+                        localStorage.removeItem('token');
+                        localStorage.removeItem('user');
+                    }
+                }
+                setLoading(false);
+            }, []);
+
+            const handleLogin = (userData, authToken) => {
+                setUser(userData);
+                setToken(authToken);
+            };
+
+            if (loading) {
+                return (
+                    <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+                        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+                    </div>
+                );
+            }
+
+            return (
+                <div>
+                    {!user || !token ? (
+                        <Login onLogin={handleLogin} />
+                    ) : (
+                        <Dashboard user={user} token={token} />
+                    )}
+                </div>
+            );
+        }
+
+        // Render the app
+        ReactDOM.render(<App />, document.getElementById('root'));
+    </script>
+</body>
+</html>
